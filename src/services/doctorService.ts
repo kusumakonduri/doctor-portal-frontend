@@ -12,9 +12,27 @@ export const fetchDoctors = async (): Promise<Doctor[]> => {
       throw new Error(`API Error: ${response.status}`);
     }
     
-    const data = await response.json();
-    console.log("Doctors data fetched successfully:", data.length, "doctors found");
-    return data;
+    const rawData = await response.json();
+    console.log("Raw API response:", rawData);
+    
+    // Map the API response to our Doctor type
+    const doctors = rawData.map((item: any) => ({
+      id: item.id,
+      name: item.name,
+      qualifications: item.qualifications || [], // Might not exist in API
+      specialties: item.specialities ? 
+        item.specialities.map((s: any) => s.name) : [],
+      experience: extractYearsFromExperience(item.experience),
+      consultationType: mapConsultationType(item.video_consult, item.in_clinic),
+      clinicName: item.clinic?.name || "",
+      location: item.clinic?.address?.city || "",
+      fee: extractFeeAmount(item.fees),
+      rating: 4.5, // Default rating if not available
+      imageUrl: item.photo || ""
+    }));
+    
+    console.log("Mapped doctors data:", doctors);
+    return doctors;
   } catch (error) {
     console.error("Failed to fetch doctors:", error);
     // Return some mock data in case the API fails
@@ -47,4 +65,34 @@ export const fetchDoctors = async (): Promise<Doctor[]> => {
       }
     ];
   }
+};
+
+// Helper function to extract years from experience string
+const extractYearsFromExperience = (experienceStr: string): number => {
+  if (!experienceStr) return 0;
+  
+  const match = experienceStr.match(/(\d+)/);
+  if (match && match[1]) {
+    return parseInt(match[1], 10);
+  }
+  return 0;
+};
+
+// Helper function to extract fee amount from fee string
+const extractFeeAmount = (feeStr: string): number => {
+  if (!feeStr) return 0;
+  
+  const match = feeStr.match(/(\d+)/);
+  if (match && match[1]) {
+    return parseInt(match[1], 10);
+  }
+  return 0;
+};
+
+// Helper function to map consultation type
+const mapConsultationType = (videoConsult: boolean, inClinic: boolean): "Video Consult" | "In Clinic" | "Both" => {
+  if (videoConsult && inClinic) return "Both";
+  if (videoConsult) return "Video Consult";
+  if (inClinic) return "In Clinic";
+  return "In Clinic"; // Default
 };
