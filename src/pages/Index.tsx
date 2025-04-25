@@ -6,6 +6,7 @@ import AutocompleteSearch from "@/components/AutocompleteSearch";
 import FilterPanel from "@/components/FilterPanel";
 import DoctorCard from "@/components/DoctorCard";
 import { updateQueryParams, getQueryParams } from "@/utils/urlUtils";
+import { toast } from "sonner";
 
 const DoctorListing = () => {
   const [doctors, setDoctors] = useState<Doctor[]>([]);
@@ -16,25 +17,42 @@ const DoctorListing = () => {
   const [sortOption, setSortOption] = useState<SortOption | null>(null);
   const [loading, setLoading] = useState(true);
   const [allSpecialties, setAllSpecialties] = useState<string[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch doctors on mount
   useEffect(() => {
     const loadDoctors = async () => {
       setLoading(true);
-      const data = await fetchDoctors();
-      setDoctors(data);
-      setFilteredDoctors(data);
-      
-      // Extract all unique specialties
-      const specialtiesSet = new Set<string>();
-      data.forEach(doctor => {
-        doctor.specialties.forEach(specialty => {
-          specialtiesSet.add(specialty);
-        });
-      });
-      setAllSpecialties(Array.from(specialtiesSet));
-      
-      setLoading(false);
+      try {
+        const data = await fetchDoctors();
+        
+        console.log("Loaded doctors:", data);
+        
+        if (data && data.length > 0) {
+          setDoctors(data);
+          setFilteredDoctors(data);
+          
+          // Extract all unique specialties
+          const specialtiesSet = new Set<string>();
+          data.forEach(doctor => {
+            doctor.specialties.forEach(specialty => {
+              specialtiesSet.add(specialty);
+            });
+          });
+          setAllSpecialties(Array.from(specialtiesSet));
+          toast.success(`${data.length} doctors loaded successfully`);
+        } else {
+          console.error("No doctors found in the response");
+          setError("No doctors found. Please try again later.");
+          toast.error("No doctors found");
+        }
+      } catch (err) {
+        console.error("Error loading doctors:", err);
+        setError("Failed to load doctors. Please try again later.");
+        toast.error("Failed to load doctors");
+      } finally {
+        setLoading(false);
+      }
     };
     
     loadDoctors();
@@ -134,7 +152,31 @@ const DoctorListing = () => {
                 <div className="animate-pulse flex flex-col items-center">
                   <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
                   <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                  <div className="mt-8 space-y-4">
+                    {[1, 2, 3].map(i => (
+                      <div key={i} className="bg-white rounded-lg p-6 shadow-md">
+                        <div className="animate-pulse flex">
+                          <div className="rounded-full bg-gray-200 h-16 w-16"></div>
+                          <div className="flex-1 ml-4 space-y-3">
+                            <div className="h-4 bg-gray-200 rounded"></div>
+                            <div className="h-4 bg-gray-200 rounded w-5/6"></div>
+                            <div className="h-4 bg-gray-200 rounded w-3/4"></div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
+              </div>
+            ) : error ? (
+              <div className="bg-white rounded-lg shadow-md p-8 text-center">
+                <h2 className="text-xl font-semibold text-gray-700 mb-2">Error</h2>
+                <p className="text-gray-500">{error}</p>
+                <button 
+                  onClick={() => window.location.reload()} 
+                  className="mt-4 bg-medical-blue text-white py-2 px-4 rounded-md">
+                  Retry
+                </button>
               </div>
             ) : (
               <>
